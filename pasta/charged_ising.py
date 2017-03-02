@@ -11,13 +11,15 @@ from matplotlib import pyplot as plt
 #import seaborn as sns
 #sns.set()
 
-d = 3 #fixed in this model
+d = 2 #fixed in this model
 v = {(1,1): 5.167, (-1, -1): 5.167, (1, -1): -5.5, (-1, 1): -5.5 } #MeV
 a = 1.842e-15 #lattice spaccing in m
 a_s = 1.0 #dimensionaless smoothing length
 L_MAX = 10 #TODO try other values
 
 dim_pot_dict = {} #store old results for the dimensionless potential
+
+site_idxs = {}
 
 def run_ising(N, B,xb, xp, n_steps, plot = False):
     '''
@@ -54,6 +56,12 @@ def run_ising(N, B,xb, xp, n_steps, plot = False):
     lattice = (np.random.rand(*size) <= xb).astype(int) #occupied
     lattice*= (2*(np.random.rand(*size)<=xp) -1).astype(int)# neturon/proton fraction
 
+    #make a list of indices
+    for spin in (1,0,-1):
+        site_idxs[spin] = set(tuple(idx) for idx in np.c_[(lattice == spin).nonzero()])
+
+    site_idxs['occ'] = site_idxs[1] & site_idxs[-1] #sites occupied by nucleon
+
     E_0 = energy(lattice)
     if plot:
         plt.ion()
@@ -77,11 +85,28 @@ def run_ising(N, B,xb, xp, n_steps, plot = False):
             site1, site2 = np.random.randint(0, N, size=(2,d))
             site1, site2 = tuple(site1), tuple(site2)
 
+        #make the appropriate switches in the sets
+        site_idxs[lattice[site1]].remove(site1)
+        site_idxs[lattice[site2]].remove(site2)
+
+        site_idxs[lattice[site1]].add(site2)
+        site_idxs[lattice[site2]].add(site1)
+
+        if lattice[site1] == 0:
+            #site1 is becoming occupied and site2 is becoming unoccupiated
+            site_idxs['occ'].add(site1)
+            site_idxs['occ'].remove(site2)
+        elif lattice[site2] == 0:
+            #vice versa
+            site_idxs['occ'].add(site2)
+            site_idxs['occ'].remove(site1)
+
+
         lattice[site1], lattice[site2] = lattice[site2], lattice[site1]
         t0 = time()
         E_f = energy(lattice)
         t1 = time()
-        print 'Total calc time: %.3f s'%(t1-t0)
+        #print 'Total calc time: %.3f s'%(t1-t0)
         # if E_F < E_0, keep
         # if E_F > E_0, keep randomly given change of energies
         if E_f >= E_0:
@@ -129,7 +154,7 @@ def energy(lattice):
     t1 = time()
     Vc = coulomb_potential(lattice)
     t2 = time()
-    print 'Vn time: %.3f s \t Vc time: %0.3f s'%(t1-t0, t2-t1)
+    #print 'Vn time: %.5f s \t Vc time: %0.5f s'%(t1-t0, t2-t1)
     #print Vn, Vc
     return Vn+Vc 
 
@@ -147,14 +172,9 @@ def nuclear_potential(lattice):
 
     N = lattice.shape[0]
 
-    dim_slices = np.meshgrid(*(xrange(N) for i in xrange(d)), indexing='ij')
-    all_sites = izip(*[slice.flatten() for slice in dim_slices])
-    #TODO where != 0
     V = 0
-    for site in all_sites:
+    for site in site_idxs['occ']:
         spin_site = lattice[site]
-        if spin_site == 0:
-            continue #no point in doing any work here, all terms will be 0.
         nn = get_NN(site, N, d)
         for neighbor in nn:
             spin_nn = lattice[tuple(neighbor)]
@@ -176,26 +196,23 @@ def coulomb_potential(lattice):
     v0 = (e**2)/(a*N)
 
     V = V0
-    #TODO use np.indices
-    dim_slices = np.meshgrid(*(xrange(N) for i in xrange(d)), indexing='ij')
-    all_sites = zip(*[slice.flatten() for slice in dim_slices])
     #TODO numpy where != 0
     #TODO can keep a list of proton, neutrons and unoccupied sites
-    for idx, site in enumerate(all_sites):
+    visited_sites = set()
+    dimpot_opps = 0
+    while site_idxs[1]:
+        site = site_idxs[1].pop()
+        visited_sites.add(site)
         t0 = time()
-
-        site_spin = lattice[site]
-        if site_spin != 1:
-            continue
         #avoid double counting by only iterating over remaining elements
-        for neighbor in all_sites[idx+1:]:
-            spin_nn = lattice[neighbor]
-            if spin_nn!= 1:
-                continue
-
+        for neighbor in site_idxs[1]:
             V+=v0*dimensionless_potential(site, neighbor, N)
+            dimpot_opps+=1
         t1 = time()
-        print 'Col Loop Time: %.3f s'%(t1-t0)
+        #print 'Col Loop Time: %.3f s'%(t1-t0)
+
+    #print dimpot_opps
+    site_idxs[1] = visited_sites
     return V
 
 #TODO precomputation
@@ -225,7 +242,7 @@ def dimensionless_potential(site1, site2, N):
 
     u_lr = 0
     for l in product(range(L_MAX), repeat = d):
-        if l == (0,0,0):
+        if l == tuple(0 for i in xrange(d)):
             continue
         l2 = sum(l_i for l_i in l)
         u_lr += (np.exp(-1*np.pi**2*s_0**2*l2)/(np.pi*l2) )*(np.exp(-2*np.pi*1j*np.dot(np.array(l), diff))).real
