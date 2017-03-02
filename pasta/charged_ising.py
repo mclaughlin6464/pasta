@@ -3,6 +3,7 @@ I'm going to modify my model for the simple ising model to the charged ising mod
 '''
 
 import argparse
+from time import time
 from itertools import izip, product
 import numpy as np
 from scipy.special import erfc
@@ -10,11 +11,13 @@ from matplotlib import pyplot as plt
 #import seaborn as sns
 #sns.set()
 
-d = 2 #fixed in this model
+d = 3 #fixed in this model
 v = {(1,1): 5.167, (-1, -1): 5.167, (1, -1): -5.5, (-1, 1): -5.5 } #MeV
 a = 1.842e-15 #lattice spaccing in m
-a_s = 3 #dimensionaless smoothing length
-L_MAX = 5 #TODO try other values
+a_s = 1.0 #dimensionaless smoothing length
+L_MAX = 10 #TODO try other values
+
+dim_pot_dict = {} #store old results for the dimensionless potential
 
 def run_ising(N, B,xb, xp, n_steps, plot = False):
     '''
@@ -55,12 +58,18 @@ def run_ising(N, B,xb, xp, n_steps, plot = False):
     if plot:
         plt.ion()
     for step in xrange(n_steps):
-        if step%1000 == 0:
-            print step, E_0, E_0/(xb*N**3), B*10
-            print
-            print lattice
-            print
-            B*=2
+        if step%100 == 0:
+            B*=1.1
+            print step, E_0, E_0/(xb*N**3), B
+            if plot:
+                if d == 1:
+                    im = plt.imshow(lattice.reshape((1, -1)),interpolation='none')
+                else:
+                    im = plt.imshow(lattice, interpolation='none')
+                plt.colorbar(im)
+                plt.title(r'$\beta= %e, E=%0.2f$'%(B, E_0))
+                plt.pause(0.1)
+                plt.clf()
         #print step
         site1, site2 = [tuple(0 for i in xrange(d)) for i in xrange(2)]
         while lattice[site1] == lattice[site2]:
@@ -69,7 +78,10 @@ def run_ising(N, B,xb, xp, n_steps, plot = False):
             site1, site2 = tuple(site1), tuple(site2)
 
         lattice[site1], lattice[site2] = lattice[site2], lattice[site1]
+        t0 = time()
         E_f = energy(lattice)
+        t1 = time()
+        print 'Total calc time: %.3f s'%(t1-t0)
         # if E_F < E_0, keep
         # if E_F > E_0, keep randomly given change of energies
         if E_f >= E_0:
@@ -81,16 +93,6 @@ def run_ising(N, B,xb, xp, n_steps, plot = False):
             E_0 = E_f
         else:
             lattice[site1], lattice[site2] = lattice[site2], lattice[site1]
-
-        # fig = plt.figure()
-        if plot and step % 100 == 0:
-            if d == 1:
-                plt.imshow(lattice.reshape((1, -1)),interpolation='none')
-            else:
-                plt.imshow(lattice, interpolation='none')
-            plt.title(correlation(lattice, N/2))
-            plt.pause(0.01)
-            plt.clf()
 
     return np.array([correlation(lattice, r) for r in xrange(1, N/2+1)])
 
@@ -122,8 +124,12 @@ def energy(lattice):
     :return:
         Energy of the lattice
     '''
-    Vn = nuclear_potential(lattice) 
+    t0 = time()
+    Vn = nuclear_potential(lattice)
+    t1 = time()
     Vc = coulomb_potential(lattice)
+    t2 = time()
+    print 'Vn time: %.3f s \t Vc time: %0.3f s'%(t1-t0, t2-t1)
     #print Vn, Vc
     return Vn+Vc 
 
@@ -157,7 +163,6 @@ def nuclear_potential(lattice):
             V += v[(spin_site, spin_nn)]
     
     return V
-
 def coulomb_potential(lattice):
     """
     The potential from the
@@ -177,6 +182,8 @@ def coulomb_potential(lattice):
     #TODO numpy where != 0
     #TODO can keep a list of proton, neutrons and unoccupied sites
     for idx, site in enumerate(all_sites):
+        t0 = time()
+
         site_spin = lattice[site]
         if site_spin != 1:
             continue
@@ -187,6 +194,8 @@ def coulomb_potential(lattice):
                 continue
 
             V+=v0*dimensionless_potential(site, neighbor, N)
+        t1 = time()
+        print 'Col Loop Time: %.3f s'%(t1-t0)
     return V
 
 #TODO precomputation
@@ -200,9 +209,18 @@ def dimensionless_potential(site1, site2, N):
     :return:
         The value of the potential between these two sites.
     """
-    diff = tuple([(site1[i]-site2[i])for i in xrange(d)])
+    diff = tuple([(site2[i]-site1[i])for i in xrange(d)])
     dist = np.sqrt(np.sum(np.array(diff)**2))
+
+    #TODO i'll wanna save this so all objects have access to it.
+    #if round(dist, 1) not in dim_pot_dict:
+    #    print diff, round(dist,1)
+
+    if round(dist,1) in dim_pot_dict:
+        return dim_pot_dict[round(dist,1)]
+
     s_0 = a_s*1.0/N
+    #TODO this term is basically inconsequential!
     u_sr = erfc(dist/s_0)/dist
 
     u_lr = 0
@@ -210,9 +228,13 @@ def dimensionless_potential(site1, site2, N):
         if l == (0,0,0):
             continue
         l2 = sum(l_i for l_i in l)
-        u_lr += (np.exp(-1*np.pi**2*s_0**2*l2)/np.pi*l2)*(np.exp(-2*np.pi*1j*np.dot(np.array(l), diff)))
+        u_lr += (np.exp(-1*np.pi**2*s_0**2*l2)/(np.pi*l2) )*(np.exp(-2*np.pi*1j*np.dot(np.array(l), diff))).real
+        #print u_lr, l
 
-    return u_sr + u_lr.real
+    #print dist, u_sr, u_lr
+    u_tot = u_sr+u_lr
+    dim_pot_dict[round(dist,1)] = u_tot
+    return u_sr + u_lr
 
 
 def magnetization(lattice):
