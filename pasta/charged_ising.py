@@ -12,7 +12,8 @@ from matplotlib import pyplot as plt
 
 d = 2 #fixed in this model
 v = {(1,1): 5.167, (-1, -1): 5.167, (1, -1): -5.5, (-1, 1): -5.5 } #MeV
-a_s = 3 #smoothing length
+a = 1.842e-15 #lattice spaccing in m
+a_s = 3 #dimensionaless smoothing length
 L_MAX = 5 #TODO try other values
 
 def run_ising(N, B,xb, xp, n_steps, plot = False):
@@ -45,30 +46,30 @@ def run_ising(N, B,xb, xp, n_steps, plot = False):
     assert n_steps > 0
 
     np.random.seed(0)
-    print 'here'
     #initialize based on inputs
     size = tuple(N for i in xrange(d))
     lattice = (np.random.rand(*size) <= xb).astype(int) #occupied
     lattice*= (2*(np.random.rand(*size)<=xp) -1).astype(int)# neturon/proton fraction
 
     E_0 = energy(lattice)
-    print E_0
     if plot:
         plt.ion()
-    print 'here'
     for step in xrange(n_steps):
-        if step%10 == 0:
-            #print step
-            pass
-        print step
-        site1, site2 = np.random.randint(0, N, size=(2,d))
-        site1, site2 = tuple(site1), tuple(site2)
-        # consider flipping this site
-        if lattice[site1] == lattice[site2]:
-            continue
+        if step%1000 == 0:
+            print step, E_0, E_0/(xb*N**3), B*10
+            print
+            print lattice
+            print
+            B*=2
+        #print step
+        site1, site2 = [tuple(0 for i in xrange(d)) for i in xrange(2)]
+        while lattice[site1] == lattice[site2]:
+            #consider flipping this site
+            site1, site2 = np.random.randint(0, N, size=(2,d))
+            site1, site2 = tuple(site1), tuple(site2)
+
         lattice[site1], lattice[site2] = lattice[site2], lattice[site1]
         E_f = energy(lattice)
-        print E_f
         # if E_F < E_0, keep
         # if E_F > E_0, keep randomly given change of energies
         if E_f >= E_0:
@@ -121,8 +122,10 @@ def energy(lattice):
     :return:
         Energy of the lattice
     '''
-
-    return nuclear_potential(lattice) + coulomb_potential(lattice)
+    Vn = nuclear_potential(lattice) 
+    Vc = coulomb_potential(lattice)
+    #print Vn, Vc
+    return Vn+Vc 
 
 
 def nuclear_potential(lattice):
@@ -152,7 +155,7 @@ def nuclear_potential(lattice):
             if spin_nn == 0:
                 continue
             V += v[(spin_site, spin_nn)]
-    print V
+    
     return V
 
 def coulomb_potential(lattice):
@@ -164,8 +167,8 @@ def coulomb_potential(lattice):
     """
     N = lattice.shape[0]
     V0 = 0 #TODO figure out the value of this
-    e = 1.0 #TODO this isn't right either!
-    v0 = (e**2)/N
+    e = 1.6e-19 #TODO this isn't right either!
+    v0 = (e**2)/(a*N)
 
     V = V0
     #TODO use np.indices
@@ -184,7 +187,6 @@ def coulomb_potential(lattice):
                 continue
 
             V+=v0*dimensionless_potential(site, neighbor, N)
-    print V
     return V
 
 #TODO precomputation
@@ -210,7 +212,7 @@ def dimensionless_potential(site1, site2, N):
         l2 = sum(l_i for l_i in l)
         u_lr += (np.exp(-1*np.pi**2*s_0**2*l2)/np.pi*l2)*(np.exp(-2*np.pi*1j*np.dot(np.array(l), diff)))
 
-    return u_sr + u_lr
+    return u_sr + u_lr.real
 
 
 def magnetization(lattice):
@@ -231,11 +233,11 @@ def correlation(lattice, r):
     dim_slices = np.meshgrid(*(xrange(N) for i in xrange(d)), indexing='ij')
     all_sites = izip(*[slice.flatten() for slice in dim_slices])
 
-    xi = 0
+    xi = 0.0
     for site in all_sites:
         nn = get_NN(site, N, d, r)
         for neighbor in nn:
-            xi += lattice[site]*lattice[tuple(neighbor)]
+            xi += 1.0 if lattice[site]==lattice[tuple(neighbor)] else -1.0
 
     return xi/((N**d)*d)
 
@@ -255,13 +257,14 @@ if __name__  == '__main__':
 
     args = parser.parse_args()
     spins = []
-    Bs = [ 0.1, 1.0, 10]
+    Bs = [0.001]#,  0.1, 1.0, 10]
     for B in Bs:
         print B
         spins.append(run_ising(B = B, **vars(args)))
 
     for B, spin in izip(Bs, spins):
-        plt.plot(spin, label = B )
-    plt.legend(loc = 'best')
-    plt.ylim([-0.1, 1.1])
-    plt.show()
+        print B, spin
+    #    plt.plot(spin, label = B )
+    #plt.legend(loc = 'best')
+    #plt.ylim([-0.1, 1.1])
+    #plt.show()
