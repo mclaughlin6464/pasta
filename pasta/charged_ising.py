@@ -150,7 +150,7 @@ def run_ising(N, B, xb, xp, n_steps, plot=False):
         plt.clf()
 
     # return np.array([correlation(lattice, r) for r in xrange(1, N/2+1)])
-    return energy(lattice) / (xb * N ** d)
+    return energies
 
 
 # TODO should this return tuples?
@@ -413,7 +413,7 @@ def heat_capacity(B, Es):
     Bf = 1 #TODO get right value of this.
     #Cv =  3/2*len(site_idxs['occ'])+np.pi**2*len(site_idxs[1])*(Bf/B)+ B*(np.mean(Es**2)-np.mean(Es)**2)
     #return Cv
-    return B**2*(np.mean(Es**2)-np.mean(Es)**2)
+    return B**2*Es.var()
 
 
 if __name__ == '__main__':
@@ -437,7 +437,11 @@ if __name__ == '__main__':
         #print xb
         #energies.append(run_ising(xb=xb, **vars(args)))
 
-    run_ising(**vars(args))
+    energies = run_ising(**vars(args))
+
+    plt.plot(energies)
+    while True:
+        plt.pause(0.1)
 
     # for xb, E in izip(xbs, energies):
     #plt.plot(xbs, energies)
