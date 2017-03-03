@@ -68,7 +68,7 @@ def run_ising(N, B, xb, xp, n_steps, plot=False):
     site_idxs['occ'] = site_idxs[1] | site_idxs[-1]  # sites occupied by nucleon
 
     E_0 = energy(lattice)
-    energies = np.zeros((n_steps+1,))
+    energies = np.zeros((n_steps+2,))
     energies[0] = E_0
     if plot:
         plt.ion()
@@ -80,7 +80,7 @@ def run_ising(N, B, xb, xp, n_steps, plot=False):
             else:
                 B *= 1.0
             #E_0 = energy(lattice)
-            E_0 = energies[step-1]
+            E_0 = energies[step]
             tf = time()
 
             Cv = heat_capacity(B, energies[step-1-n_steps/50:step-1])
@@ -108,7 +108,7 @@ def run_ising(N, B, xb, xp, n_steps, plot=False):
 
         # t0 = time()
 
-        energies[step] = energies[step-1]
+        energies[step+1] = energies[step]
         dE = delta_energy(lattice, site1, site2)
 
         # t1 = time()
@@ -134,7 +134,7 @@ def run_ising(N, B, xb, xp, n_steps, plot=False):
 
             lattice[site1], lattice[site2] = lattice[site2], lattice[site1]
 
-            energies[step] += dE
+            energies[step+1] += dE
 
     if plot:
         if d == 1:
@@ -179,7 +179,7 @@ def get_NN(site, N, d, r=1, full=False):
     return np.r_[((mult_sites + adjustment) % N).astype(int), ((mult_sites - adjustment + N) % N).astype(int)]
 
 
-def energy(lattice, U0 = 0):
+def energy(lattice):
     '''
     Calculate the energy of a lattice
     :param lattice:
@@ -439,7 +439,7 @@ if __name__ == '__main__':
 
     energies = run_ising(**vars(args))
 
-    plt.plot(energies)
+    plt.plot(energies/len(site_idxs[-1]))
     while True:
         plt.pause(0.1)
 
