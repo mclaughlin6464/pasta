@@ -15,7 +15,7 @@ sns.set()
 # sns.set_palette(sns.color_palette("BrBG", 3))
 cmap = 'coolwarm'
 
-d = 2  # fixed in this model
+d = 3  # fixed in this model
 v = {(1, 1): 5.167, (-1, -1): 5.167, (1, -1): -5.5, (-1, 1): -5.5}  # MeV
 a = 1.842e-15  # lattice spaccing in m
 a_s = 1.0  # dimensionaless smoothing length
@@ -68,6 +68,10 @@ def run_ising(N, B, xb, xp, n_steps, plot=False):
     site_idxs['occ'] = site_idxs[1] | site_idxs[-1]  # sites occupied by nucleon
 
     E_0 = energy(lattice)
+    if xb == 1.0 and (xp == 0.0 or xp == 1.0): #no swaps possible, will infinite loop
+        print E_0/(N**d)
+        energies = np.array([E_0 for i in xrange(n_steps+2)])
+        return energies
     energies = np.zeros((n_steps+2,))
     energies[0] = E_0
     if plot:
@@ -75,10 +79,8 @@ def run_ising(N, B, xb, xp, n_steps, plot=False):
     tf, t0 = 0, 0
     for step in xrange(n_steps+1):
         if step % (n_steps/100) == 0:
-            if step < n_steps / 2:
-                B *= 1.0
-            else:
-                B *= 1.0
+            if 3*n_steps/4 >step > n_steps / 4:
+                B *= 1.2
             #E_0 = energy(lattice)
             E_0 = energies[step]
             tf = time()
@@ -89,10 +91,10 @@ def run_ising(N, B, xb, xp, n_steps, plot=False):
             if plot:
                 if d == 1:
                     # im = plt.imshow(lattice.reshape((1, -1)), interpolation='none')
-                    sns.heatmap(lattice.reshape((1, -1)), cbar=True, cmap=cmap)
+                    sns.heatmap(lattice.reshape((1, -1)), cbar=True, cmap=cmap, vmin = -1, vmax = 1)
                 else:
                     # im = plt.imshow(lattice, interpolation='none')
-                    sns.heatmap(lattice, cbar=True, cmap=cmap)
+                    sns.heatmap(lattice, cbar=True, cmap=cmap, vmin = -1, vmax = 1)
                 # plt.colorbar(im)
                 plt.title(r'$\beta= %e, E/A=%0.2f, C_v=%0.2f$' % (B, E_0 / (xb * N ** d), Cv/len(site_idxs['occ']) ) )
                 plt.pause(0.1)
@@ -442,13 +444,15 @@ if __name__ == '__main__':
 
     energies = run_ising(**vars(args))
 
-    plt.plot(energies/len(site_idxs[-1]))
+    plt.plot(energies/len(site_idxs['occ']), label = 'E')
+    #plt.plot([energies[i:i+100].var()/len(site_idxs['occ']) for i in xrange(energies.shape[0]-100)], label = 'C')
+    plt.legend(loc = 'best')
+
     while True:
         plt.pause(0.1)
 
     # for xb, E in izip(xbs, energies):
     #plt.plot(xbs, energies)
-    # plt.legend(loc = 'best')
     # plt.ylim([-0.1, 1.1])
     #plt.savefig('/home/sean/GitRepos/pasta/files/GroundStates.png')
     #while True:
