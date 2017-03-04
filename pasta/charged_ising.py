@@ -3,7 +3,7 @@ I'm going to modify my model for the simple ising model to the charged ising mod
 '''
 
 import argparse
-import path
+from os import path
 from time import time
 from itertools import izip, product
 import numpy as np
@@ -432,10 +432,48 @@ def heat_capacity(B, Es):
     :return:
         Cv, the heat capacity.
     """
-    Bf = 1 #TODO get right value of this.
-    #Cv =  3/2*len(site_idxs['occ'])+np.pi**2*len(site_idxs[1])*(Bf/B)+ B*(np.mean(Es**2)-np.mean(Es)**2)
-    #return Cv
-    return B**2*Es.var()
+    #Bf = 1.0/11700 #TODO get right value of this.
+    #Cv =  3/2*len(site_idxs['occ'])+np.pi**2*len(site_idxs[1])*(Bf/B)+
+    Cv = (B**2)*Es.var()
+    return Cv
+
+def pair_correlation(particle, r, N, tol = 1e-3):
+    """
+    Correlation between two particles or spaces at a given distance.
+    :param particle:
+        type of particle. Must be among {-1, 0, 1, "occ"}, where occ is all nucleons
+    :param r:
+        float, Distance to count particles at. Must be between 0 and 1.
+    :param N:
+        int, size of the lattice
+    :param tol:
+        float, distance tolerance. Default is 1e-3
+    :return:
+        g(r), the pair-pair correlation of this particular particle on the lattice.
+    """
+    assert particle in site_idxs
+    assert 0 < r < 1
+
+    r_avg = 0
+    paircount = 0
+    Np = len(site_idxs['occ'])
+    visited_sites = set()
+
+    while site_idxs[particle]:
+        site1 = site_idxs[particle].pop()
+        visited_sites.add(site1)
+
+        for site2 in site_idxs[particle]:
+
+            r_vec = pbc_r(site1, site2, N)
+            r_mag = np.sqrt(sum([r_i**2 for r_i in r_vec]))
+            paircount+=1
+            if np.abs(r-r_mag) < tol:
+                r_avg += 1
+
+    site_idxs[particle] = visited_sites
+
+    return 1 + N**d/(Np*(Np-1))*(r_avg/paircount)
 
 
 if __name__ == '__main__':
@@ -467,12 +505,12 @@ if __name__ == '__main__':
     #plt.plot([energies[i:i+100].var()/len(site_idxs['occ']) for i in xrange(energies.shape[0]-100)], label = 'C')
     plt.legend(loc = 'best')
 
-    plt.savefig(path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_energies.png'%(args.xb,args.xp)))
+    #plt.savefig(path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_energies.png'%(args.xb,args.xp)))
 
-    np.savetxt(path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_energies.npy'%(args.xb,args.xp)), energies, delimiter=',')
+    #np.savetxt(path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_energies.npy'%(args.xb,args.xp)), energies, delimiter=',')
 
-    #while True:
-    #    plt.pause(0.1)
+    while True:
+        plt.pause(0.1)
 
     # for xb, E in izip(xbs, energies):
     #plt.plot(xbs, energies)
