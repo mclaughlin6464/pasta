@@ -15,7 +15,7 @@ sns.set()
 # sns.set_palette(sns.color_palette("BrBG", 3))
 cmap = 'coolwarm'
 
-d = 3  # fixed in this model
+d = 2  # fixed in this model
 v = {(1, 1): 5.167, (-1, -1): 5.167, (1, -1): -5.5, (-1, 1): -5.5}  # MeV
 a = 1.842e-15  # lattice spaccing in m
 a_s = 1.0  # dimensionaless smoothing length
@@ -74,7 +74,7 @@ def run_ising(N, B, xb, xp, n_steps, plot=False):
         plt.ion()
     tf, t0 = 0, 0
     for step in xrange(n_steps+1):
-        if step % (n_steps/20) == 0:
+        if step % (n_steps/100) == 0:
             if step < n_steps / 2:
                 B *= 1.0
             else:
@@ -83,7 +83,7 @@ def run_ising(N, B, xb, xp, n_steps, plot=False):
             E_0 = energies[step]
             tf = time()
 
-            Cv = heat_capacity(B, energies[step-1-n_steps/50:step-1])
+            Cv = heat_capacity(B, energies[step-n_steps/100:step])
             print Cv/len(site_idxs['occ'])
             print step, E_0, E_0 / (xb * N ** d), B, tf - t0
             if plot:
@@ -135,6 +135,9 @@ def run_ising(N, B, xb, xp, n_steps, plot=False):
             lattice[site1], lattice[site2] = lattice[site2], lattice[site1]
 
             energies[step+1] += dE
+            #print dE, lattice[site1], lattice[site2]
+            #print energies[step], energies[step+1], energy(lattice)
+            #print '*'*30
 
     if plot:
         if d == 1:
@@ -173,10 +176,12 @@ def get_NN(site, N, d, r=1, full=False):
     '''
     mult_sites = np.r_[[site for i in xrange(d)]]
     adjustment = np.eye(d) * r
-    if not full:
-        return ((mult_sites + adjustment) % N).astype(int)
+
+    output = map(tuple, ((mult_sites + adjustment) % N).astype(int) )
+    if full:
+        output.extend(map(tuple, ((mult_sites - adjustment + N) % N).astype(int) ))
     # return backwards neighbors also
-    return np.r_[((mult_sites + adjustment) % N).astype(int), ((mult_sites - adjustment + N) % N).astype(int)]
+    return output
 
 
 def energy(lattice):
@@ -214,7 +219,6 @@ def delta_energy(lattice, site1, site2):
     # TODO this doesn't need E_0, just can calculate the delta.
     dVn = delta_nucpot(lattice, site1, site2)
     dVc = delta_colpot(lattice, site1, site2)
-
     return dVn +dVc
 
 
@@ -234,7 +238,7 @@ def nuclear_potential(lattice):
     V = 0
     for site in site_idxs['occ']:
         spin_site = lattice[site]
-        nn = get_NN(site, N, d)
+        nn = set(get_NN(site, N, d)) & site_idxs['occ']
         for neighbor in nn:
             spin_nn = lattice[tuple(neighbor)]
             if spin_nn == 0:
@@ -263,11 +267,12 @@ def delta_nucpot(lattice, site1, site2):
     for siteA, siteB in [(site1, site2), (site2, site1)]:
         spin_siteA = lattice[siteA]
         spin_siteB = lattice[siteB]
-        nn = get_NN(siteA, N, d, full=True)
+        nn = set(get_NN(siteA, N, d, full=True)) & site_idxs['occ']
+
+        nn.discard(siteB) #make usre you don't count energy that's already there!
+
         for neighbor in nn:
-            spin_nn = lattice[tuple(neighbor)]
-            if spin_nn == 0:
-                continue
+            spin_nn = lattice[neighbor]
             if spin_siteA != 0:
                 V -= v[(spin_siteA, spin_nn)]
             if spin_siteB != 0:
@@ -307,7 +312,7 @@ def coulomb_potential(lattice):
         t0 = time()
         # avoid double counting by only iterating over remaining elements
         for neighbor in site_idxs[1]:
-            U += v0 * dimensionless_potential(site, neighbor, N)
+            U += dimensionless_potential(site, neighbor, N)
             dimpot_opps += 1
         t1 = time()
         # print 'Col Loop Time: %.3f s'%(t1-t0)
@@ -329,30 +334,28 @@ def delta_colpot(lattice, site1, site2):
     :return:
         dV, float, the change in potential from the swap
     """
+    spin1, spin2 = lattice[site1], lattice[site2]
+    if (spin1, spin2) in [(0,0), (0, -1), (-1, 0), (-1,-1), (1,1)]:
+        return 0
     N = lattice.shape[0]
     e = 1.6e-19
     v0 = (9e9) * (e ** 2) / (a * N) * (6.242e12)
 
     U = 0 #constant doesn't matter here
     dimpot_opps = 0
-    for site in (site1, site2):
-        t0 = time()
-        if lattice[site] == 1:
-            sign = -1
-            site_idxs[1].remove(site)
-        else:
-            sign = 1
 
-        # avoid double counting by only iterating over remaining elements
-        for neighbor in site_idxs[1]:
-            U += sign * dimensionless_potential(site, neighbor, N)
-            dimpot_opps += 1
+    pos_site = site1 if spin1 == 1 else site2
+    zero_site = site2 if spin1 == 1 else site1
 
-        if lattice[site] == 1:  # add it back!
-            site_idxs[1].add(site)
-        t1 = time()
+    site_idxs[1].remove(pos_site)
+
+    for neighbor in site_idxs[1]:
+        U -= dimensionless_potential(pos_site, neighbor, N)
+        U += dimensionless_potential(zero_site, neighbor, N)
+        dimpot_opps += 2
 
         # print 'Col Loop Time: %.3f s'%(t1-t0)
+    site_idxs[1].add(pos_site)
 
     # print dimpot_opps
 
