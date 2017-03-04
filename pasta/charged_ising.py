@@ -366,6 +366,20 @@ def delta_colpot(lattice, site1, site2):
 
     return U*v0
 
+def pbc_r(site1, site2, N):
+    """
+    The distance vector between two sites in PBC
+    :param site1:
+        d- tuple of the location of the first site
+    :param site2:
+        d- tuple of location of the second site
+    :param N:
+        Sidelength of one side of the lattice
+    :return:
+        r, d-tuple, distance between two points
+    """
+    return  tuple([min(abs(float(site2[i] - site1[i]) / N), abs(1-float(site2[i] - site1[i]) / N) ) for i in xrange(d)])
+
 
 def dimensionless_potential(site1, site2, N):
     """
@@ -377,7 +391,7 @@ def dimensionless_potential(site1, site2, N):
     :return:
         The value of the potential between these two sites.
     """
-    diff = tuple([float(site2[i] - site1[i]) / N for i in xrange(d)])
+    diff = pbc_r(site1, site2, N)
     dist = np.sqrt(np.sum(np.array(diff) ** 2))
 
     # TODO i'll wanna save this so all objects have access to it.
