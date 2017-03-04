@@ -29,7 +29,7 @@ dim_pot_dict = {}  # store old results for the dimensionless potential
 site_idxs = {}
 
 
-def run_ising(N, B, xb, xp, n_steps, lutputdir, plot=False):
+def run_ising(N, B, xb, xp, n_steps, outputdir, plot=False):
     '''
     Run the simulation at temperature B for n_steps
     :param N: Int, length of one side
@@ -435,7 +435,7 @@ if __name__ == '__main__':
                         help='Proton fraction. Default is 0.5')
     parser.add_argument('n_steps', type=int, default=1000, nargs='?', \
                         help='Number of steps to simulate. Default is 1e5')
-    parser.add_argument('n_steps', type=str, default='./', nargs='?', \
+    parser.add_argument('outputdir', type=str, default='./', nargs='?', \
                         help='Directory to save outputs. Default is current directory.')
     parser.add_argument('--plot', action='store_true', \
                         help='Whether or not to plot results. Only allowed with d = 1 or 2.')
