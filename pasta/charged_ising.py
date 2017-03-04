@@ -3,10 +3,13 @@ I'm going to modify my model for the simple ising model to the charged ising mod
 '''
 
 import argparse
+import path
 from time import time
 from itertools import izip, product
 import numpy as np
 from scipy.special import erfc
+import matplotlib
+matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 import seaborn as sns
 
@@ -26,7 +29,7 @@ dim_pot_dict = {}  # store old results for the dimensionless potential
 site_idxs = {}
 
 
-def run_ising(N, B, xb, xp, n_steps, plot=False):
+def run_ising(N, B, xb, xp, n_steps, lutputdir, plot=False):
     '''
     Run the simulation at temperature B for n_steps
     :param N: Int, length of one side
@@ -79,8 +82,8 @@ def run_ising(N, B, xb, xp, n_steps, plot=False):
     tf, t0 = 0, 0
     for step in xrange(n_steps+1):
         if step % (n_steps/100) == 0:
-            if 3*n_steps/4 >step > n_steps / 4:
-                B *= 1.2
+            if n_steps/2 >step > n_steps / 6:
+                B *= 1.5
             #E_0 = energy(lattice)
             E_0 = energies[step]
             tf = time()
@@ -432,6 +435,8 @@ if __name__ == '__main__':
                         help='Proton fraction. Default is 0.5')
     parser.add_argument('n_steps', type=int, default=1000, nargs='?', \
                         help='Number of steps to simulate. Default is 1e5')
+    parser.add_argument('n_steps', type=str, default='./', nargs='?', \
+                        help='Directory to save outputs. Default is current directory.')
     parser.add_argument('--plot', action='store_true', \
                         help='Whether or not to plot results. Only allowed with d = 1 or 2.')
 
@@ -448,8 +453,12 @@ if __name__ == '__main__':
     #plt.plot([energies[i:i+100].var()/len(site_idxs['occ']) for i in xrange(energies.shape[0]-100)], label = 'C')
     plt.legend(loc = 'best')
 
-    while True:
-        plt.pause(0.1)
+    plt.savefig(path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_energies.png'%(args.xb,args.xp)))
+
+    np.savetxt(path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_energies.npy'%(args.xb,args.xp)), energies, delimiter=',')
+
+    #while True:
+    #    plt.pause(0.1)
 
     # for xb, E in izip(xbs, energies):
     #plt.plot(xbs, energies)
