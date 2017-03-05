@@ -6,10 +6,11 @@ import argparse
 from os import path
 from time import time
 from itertools import izip, product
+from collections import defaultdict
 import numpy as np
 from scipy.special import erfc
 import matplotlib
-matplotlib.use('Agg')
+#matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 import seaborn as sns
 
@@ -18,16 +19,19 @@ sns.set()
 # sns.set_palette(sns.color_palette("BrBG", 3))
 cmap = 'coolwarm'
 
-d = 3  # fixed in this model
+d = 2  # fixed in this model
 v = {(1, 1): 5.167, (-1, -1): 5.167, (1, -1): -5.5, (-1, 1): -5.5}  # MeV
 a = 1.842e-15  # lattice spaccing in m
 a_s = 1.0  # dimensionaless smoothing length
 L_MAX = 10  # TODO try other values
 
+downsample_rate = 100
+
 dim_pot_dict = {}  # store old results for the dimensionless potential
 
 site_idxs = {}
 
+pbc_r_dict = defaultdict(dict) # store distances
 
 def run_ising(N, B, xb, xp, n_steps, outputdir, plot=False):
     '''
@@ -77,18 +81,25 @@ def run_ising(N, B, xb, xp, n_steps, outputdir, plot=False):
         return energies
     energies = np.zeros((n_steps+2,))
     energies[0] = E_0
+
+    correlations = np.zeros(((n_steps+2/downsample_rate)))
+    cvs = np.zeros(((n_steps+2/downsample_rate)))
+
     if plot:
         plt.ion()
     tf, t0 = 0, 0
     for step in xrange(n_steps+1):
-        if step % (n_steps/100) == 0:
+        if step % (n_steps/downsample_rate) == 0:
             if n_steps/2 >step > n_steps / 6:
                 B *= 1.5
             #E_0 = energy(lattice)
             E_0 = energies[step]
             tf = time()
 
-            Cv = heat_capacity(B, energies[step-n_steps/100:step])
+            Cv = heat_capacity(B, energies[step-n_steps/downsample_rate:step])
+            cvs[step/downsample_rate] = Cv
+
+            corr = co
             print Cv/len(site_idxs['occ'])
             print step, E_0, E_0 / (xb * N ** d), B, tf - t0
             if plot:
@@ -158,7 +169,13 @@ def run_ising(N, B, xb, xp, n_steps, outputdir, plot=False):
         plt.clf()
 
     # return np.array([correlation(lattice, r) for r in xrange(1, N/2+1)])
-    return energies
+    npoints = 1000
+    correlations = np.zeros((npoints, 3))
+
+    for i, particle in enumerate((-1, 1, 'occ')):
+        for j, r in enumerate( np.linspace(0, 1, npoints)):
+            correlations[j,i] = pair_correlation(particle, r, N)
+    return energies, correlations
 
 
 # TODO should this return tuples?
@@ -224,6 +241,7 @@ def delta_energy(lattice, site1, site2):
     # TODO this doesn't need E_0, just can calculate the delta.
     dVn = delta_nucpot(lattice, site1, site2)
     dVc = delta_colpot(lattice, site1, site2)
+    print dVn, dVc
     return dVn +dVc
 
 
@@ -378,7 +396,15 @@ def pbc_r(site1, site2, N):
     :return:
         r, d-tuple, distance between two points
     """
-    return  tuple([min(abs(float(site2[i] - site1[i]) / N), abs(1-float(site2[i] - site1[i]) / N) ) for i in xrange(d)])
+    if site1 in pbc_r_dict:
+        if site2 in pbc_r_dict[site1]:
+            return pbc_r_dict[site1][site2]
+
+    diff = tuple([min(abs(float(site2[i] - site1[i]) / N), abs(1-float(site2[i] - site1[i]) / N) ) for i in xrange(d)])
+    pbc_r_dict[site1][site2] = diff
+    pbc_r_dict[site2][site1] = diff
+
+    return diff
 
 
 def dimensionless_potential(site1, site2, N):
@@ -452,7 +478,7 @@ def pair_correlation(particle, r, N, tol = 1e-3):
         g(r), the pair-pair correlation of this particular particle on the lattice.
     """
     assert particle in site_idxs
-    assert 0 < r < 1
+    assert 0 <= r <= 1
 
     r_avg = 0
     paircount = 0
@@ -473,7 +499,10 @@ def pair_correlation(particle, r, N, tol = 1e-3):
 
     site_idxs[particle] = visited_sites
 
-    return 1 + N**d/(Np*(Np-1))*(r_avg/paircount)
+    if paircount == 0:
+        return 1
+
+    return 1 + N**d/(Np*(Np-1.0))*(r_avg*1.0/paircount)
 
 
 if __name__ == '__main__':
@@ -499,20 +528,35 @@ if __name__ == '__main__':
         #print xb
         #energies.append(run_ising(xb=xb, **vars(args)))
 
-    energies = run_ising(**vars(args))
+    energies, correlations = run_ising(**vars(args))
 
-    plt.plot(energies/len(site_idxs['occ']), label = 'E')
+    #plt.plot(energies/len(site_idxs['occ']), label = 'E')
     #plt.plot([energies[i:i+100].var()/len(site_idxs['occ']) for i in xrange(energies.shape[0]-100)], label = 'C')
-    plt.legend(loc = 'best')
+    #plt.legend(loc = 'best')
 
     #plt.savefig(path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_energies.png'%(args.xb,args.xp)))
 
     #np.savetxt(path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_energies.npy'%(args.xb,args.xp)), energies, delimiter=',')
+    if not args.plot:
+        plt.ion()
+    #while True:
+    #    plt.pause(0.1)
+
+    rs = np.linspace(0,1, correlations.shape[0])
+    plt.plot(rs, correlations[:,0], label = 'Neutrons')
+    plt.plot(rs, correlations[:,1], label = 'Protons')
+    #plt.plot(rs, correlations[:,2], label = 'Nucleons')
+    plt.legend(loc = 'best')
 
     while True:
         plt.pause(0.1)
 
-    # for xb, E in izip(xbs, energies):
+    #np.savetxt(path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_correlations.npy'%(args.xb,args.xp)), energies, delimiter=',')
+
+    #plt.savefig(path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_correlations.png'%(args.xb,args.xp)))
+
+
+        # for xb, E in izip(xbs, energies):
     #plt.plot(xbs, energies)
     # plt.ylim([-0.1, 1.1])
     #plt.savefig('/home/sean/GitRepos/pasta/files/GroundStates.png')
