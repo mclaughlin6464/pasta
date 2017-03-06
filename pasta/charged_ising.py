@@ -143,7 +143,7 @@ def run_ising(N, B_goal, xb, xp, n_steps, outputdir, plot=False):
             site1, site2 = np.random.randint(0, N, size=(2, d))
             site1, site2 = tuple(site1), tuple(site2)
 
-        #energies[step+1] = energies[step]
+        energies[step+1] = energies[step]
         dE = delta_energy(lattice, site1, site2)
 
         # if E_F < E_0, keep
@@ -234,6 +234,7 @@ def energy(lattice):
     Vn = nuclear_potential(lattice)
     Vc = coulomb_potential(lattice)
     #print Vn, Vc
+    #print 'E',Vc < 0
     return Vn  +Vc
 
 
@@ -252,6 +253,8 @@ def delta_energy(lattice, site1, site2):
     dVn = delta_nucpot(lattice, site1, site2)
     dVc = delta_colpot(lattice, site1, site2)
     #print dVn, dVc
+    #print 'd', dVc < 0
+    #print dVn+1000*dVc
     return dVn +dVc
 
 
@@ -340,6 +343,8 @@ def coulomb_potential(lattice):
         l2 = sum(l_i ** 2 for l_i in l)
         u_lr0 += np.exp(-1 * np.pi ** 2 * s_0 ** 2 * l2)
     U+=Z/2*u_lr0
+
+    #U = 0
 
     #Had to do this cuz i was getting non-deterministic behavior
     proton_list = sorted(list(site_idxs[1]), key = lambda x: x[0])
@@ -585,13 +590,13 @@ if __name__ == '__main__':
     print cvs[cvs.shape[0]/2:].mean()
 
     plt.plot(energies/len(site_idxs['occ']), label = 'E')
-    plt.plot([energies[i:i+100].var()/len(site_idxs['occ']) for i in xrange(energies.shape[0]-100)], label = 'C')
+    #plt.plot([energies[i:i+100].var()/len(site_idxs['occ']) for i in xrange(energies.shape[0]-100)], label = 'C')
     plt.legend(loc = 'best')
 
     #plt.savefig(os.path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_energies.png'%(args.xb,args.xp)))
 
-    np.savetxt(os.path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_energies.npy'%(args.xb,args.xp)), energies, delimiter=',')
-    np.savetxt(os.path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_energies.npy'%(args.xb,args.xp)), energies, delimiter=',')
+    #np.savetxt(os.path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_energies.npy'%(args.xb,args.xp)), energies, delimiter=',')
+    #np.savetxt(os.path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_energies.npy'%(args.xb,args.xp)), energies, delimiter=',')
     plt.clf()
 
     #if not args.plot:
