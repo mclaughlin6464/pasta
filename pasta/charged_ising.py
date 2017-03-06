@@ -11,14 +11,14 @@ import numpy as np
 from numpy.linalg import norm
 from scipy.special import erfc
 import matplotlib
-matplotlib.use('Agg')
+#matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 import seaborn as sns
 
 sns.set()
 cmap = 'coolwarm'
 
-d = 3  # fixed in this model
+d = 2  # fixed in this model
 v = {(1, 1): 5.167, (-1, -1): 5.167, (1, -1): -5.5, (-1, 1): -5.5}  # MeV
 a = 1.842e-15  # lattice spaccing in m
 a_s = 1.0  # dimensionaless smoothing length
@@ -56,7 +56,7 @@ def run_ising(N, B_goal, xb, xp, n_steps, outputdir, plot=False):
     assert 0 <= xp <= 1
     assert n_steps > 0
 
-    np.random.seed(int(time()))
+    np.random.seed(0)
     # initialize based on inputs
     size = tuple(N for i in xrange(d))
     lattice = (np.random.rand(*size) <= xb).astype(int)  # occupied
@@ -164,8 +164,6 @@ def run_ising(N, B_goal, xb, xp, n_steps, outputdir, plot=False):
             lattice[site1], lattice[site2] = lattice[site2], lattice[site1]
 
             energies[step+1] += dE
-            #print dE, lattice[site1], lattice[site2]
-            #print energies[step], energies[step+1], energy(lattice)
 
     if plot:
         if d == 1:
@@ -231,8 +229,8 @@ def energy(lattice):
     '''
     Vn = nuclear_potential(lattice)
     Vc = coulomb_potential(lattice)
-    # print Vn, Vc
-    return Vn  +Vc
+    #print Vn, Vc
+    return Vc#  +Vc
 
 
 def delta_energy(lattice, site1, site2):
@@ -249,7 +247,8 @@ def delta_energy(lattice, site1, site2):
     """
     dVn = delta_nucpot(lattice, site1, site2)
     dVc = delta_colpot(lattice, site1, site2)
-    return dVn +dVc
+    #print dVn, dVc
+    return dVc# +dVc
 
 
 def nuclear_potential(lattice):
@@ -338,14 +337,14 @@ def coulomb_potential(lattice):
         u_lr0 += np.exp(-1 * np.pi ** 2 * s_0 ** 2 * l2)
     U+=Z/2*u_lr0
 
-    visited_sites = set()
-    while site_idxs[1]:
-        site = site_idxs[1].pop()
-        visited_sites.add(site)
-        for neighbor in site_idxs[1]:
+    #Had to do this cuz i was getting non-deterministic behavior
+    proton_list = sorted(list(site_idxs[1]), key = lambda x: x[0])
+    #print len(site_idxs[1])
+    while proton_list:
+        site = proton_list.pop()
+        for neighbor in proton_list:
             U += dimensionless_potential(site, neighbor, N)
 
-    site_idxs[1] = visited_sites
     return v0*U
 
 
@@ -380,7 +379,6 @@ def delta_colpot(lattice, site1, site2):
         U += dimensionless_potential(zero_site, neighbor, N)
 
     site_idxs[1].add(pos_site)
-
 
     return U*v0
 
@@ -430,9 +428,8 @@ def dimensionless_potential(site1, site2, N):
 
         u_lr += (np.exp(-1 * np.pi ** 2 * s_0 ** 2 * l2) / (np.pi * l2)) * (
         np.exp(-2 * np.pi * 1j * np.dot(l, diff))).real
-
+    #print site1, site2, u_lr
     u_tot = u_sr + u_lr
-
     dim_pot_dict[round(dist, 1)] = u_tot
     return u_tot
 
@@ -585,10 +582,11 @@ if __name__ == '__main__':
     plt.plot([energies[i:i+100].var()/len(site_idxs['occ']) for i in xrange(energies.shape[0]-100)], label = 'C')
     plt.legend(loc = 'best')
 
-    plt.savefig(os.path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_energies.png'%(args.xb,args.xp)))
+    #plt.savefig(os.path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_energies.png'%(args.xb,args.xp)))
 
     np.savetxt(os.path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_energies.npy'%(args.xb,args.xp)), energies, delimiter=',')
     np.savetxt(os.path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_energies.npy'%(args.xb,args.xp)), energies, delimiter=',')
+    plt.clf()
 
     #if not args.plot:
     #    plt.ion()
@@ -602,8 +600,8 @@ if __name__ == '__main__':
     #plt.plot(rs, correlations[:,2], label = 'Nucleons')
     plt.legend(loc = 'best')
 
-    #while True:
-    #    plt.pause(0.1)
+    while True:
+        plt.pause(0.1)
 
     plt.savefig(os.path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_correlations.png'%(args.xb,args.xp)))
 
