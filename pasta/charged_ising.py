@@ -132,7 +132,7 @@ def run_ising(N, B_goal, xb, xp, n_steps, outputdir, plot=False):
                     sns.heatmap(lattice, cbar=True, cmap=cmap, vmin = -1, vmax = 1)
                 # plt.colorbar(im)
                 plt.title(r'$\beta= %e, E/A=%0.2f, C_v=%0.2f$' % (B, E_0 / (xb * N ** d), Cv/len(site_idxs['occ']) ) )
-                plt.pause(0.5)
+                plt.pause(0.1)
                 plt.clf()
 
             t0 = time()
@@ -604,6 +604,8 @@ if __name__ == '__main__':
         #energies.append(run_ising(xb=xb, **vars(args)))
 
     energies,cvs, euclid_correlations, taxicab_correlations = run_ising(**vars(args))
+
+    print 'Done'
 
     print energies[energies.shape[0]/2:].mean()/(len(site_idxs['occ']))
     print cvs[cvs.shape[0]/2:].mean()
