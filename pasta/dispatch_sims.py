@@ -6,7 +6,7 @@ import os
 from subprocess import call
 import numpy as np
 
-outputdir = '/u/ki/swmclau2/des/statmech/sanity_test/'
+outputdir = '/u/ki/swmclau2/des/statmech/full/'
 max_time = 24
 
 def make_kils_command(jobname,N,B_goal, xb, xp, n_steps, max_time = max_time, outputdir = outputdir, queue='kipac-ibq'):#'bulletmpi'):
