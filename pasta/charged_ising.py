@@ -78,9 +78,9 @@ def run_ising(N, B_goal, xb, xp, n_steps, outputdir, plot=False):
     energies[0] = E_0
 
     npoints = 1000
-    euclid_r_avgs = np.zeros(((n_steps)/downsample_rate+1.0, npoints, 3))
-    taxicab_r_avgs = np.zeros(((n_steps)/downsample_rate+1.0, npoints, 3))
-    cvs = np.zeros(((n_steps)/downsample_rate+1.0,))
+    euclid_r_avgs =  np.zeros((int(n_steps/downsample_rate+1.0), npoints, 3))
+    taxicab_r_avgs = np.zeros((int(n_steps/downsample_rate+1.0), npoints, 3))
+    cvs = np.zeros((int(n_steps/downsample_rate+1.0),))
 
     if plot:
         plt.ion()
@@ -115,7 +115,7 @@ def run_ising(N, B_goal, xb, xp, n_steps, outputdir, plot=False):
                 euclid_r_avgs[step/downsample_rate, :, i] = pair_correlation(particle, npoints, N)
                 taxicab_r_avgs[step/downsample_rate, :, i] = pair_correlation(particle, npoints, N, dist='taxicab')
 
-            np.save(os.path.join(outputdir, 'lattice_%3d.npy'), lattice)
+            np.save(os.path.join(outputdir, 'lattice_%03d.npy'%(step/downsample_rate)), lattice)
 
             print step, E_0, E_0 / (xb * N ** d), B,Cv/len(site_idxs['occ']), tf - t0
             print
