@@ -12,7 +12,7 @@ import numpy as np
 from numpy.linalg import norm
 from scipy.special import erfc
 import matplotlib
-#matplotlib.use('Agg')
+matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 import seaborn as sns
 
@@ -135,30 +135,6 @@ def run_ising(N, B_goal, xb, xp, n_steps, outputdir, plot=False):
                 plt.pause(0.5)
                 plt.clf()
 
-            row, col = np.indices(tuple(N for i in xrange(d)))
-            #from copy import deepcopy
-            #l2 = deepcopy(lattice)
-            lattice[[row, col]] = lattice[[(row+1)%N, (col+0)%N]]
-            # make a list of indices
-            for spin in (1, 0, -1):
-                site_idxs[spin] = set(tuple(idx) for idx in np.c_[(lattice == spin).nonzero()])
-
-            site_idxs['occ'] = site_idxs[1] | site_idxs[-1]  # sites occupied by nucleon
-            print '*'*50
-            print energy(lattice)
-
-            if plot:
-                if d == 1:
-                    # im = plt.imshow(lattice.reshape((1, -1)), interpolation='none')
-                    sns.heatmap(lattice.reshape((1, -1)), cbar=True, cmap=cmap, vmin=-1, vmax=1)
-                else:
-                    # im = plt.imshow(lattice, interpolation='none')
-                    sns.heatmap(lattice, cbar=True, cmap=cmap, vmin=-1, vmax=1)
-                # plt.colorbar(im)
-                plt.title(r'$\beta= %e, E/A=%0.2f, C_v=%0.2f$' % (B, E_0 / (xb * N ** d), Cv / len(site_idxs['occ'])))
-                plt.pause(0.5)
-                plt.clf()
-
             t0 = time()
 
         site1, site2 = [tuple(0 for i in xrange(d)) for i in xrange(2)]
@@ -257,8 +233,7 @@ def energy(lattice):
     '''
     Vn = nuclear_potential(lattice)
     Vc = coulomb_potential(lattice)
-    #print Vn, Vc
-    return Vn + 1000*Vc
+    return Vn + Vc
 
 
 def delta_energy(lattice, site1, site2):
@@ -382,17 +357,15 @@ def coulomb_potential(lattice):
         for neighbor in proton_list:
             #print site, neighbor
             Us.append(dimensionless_potential(site, neighbor, N) )
-            U2 = dimensionless_potential( ((site[0]+1)%N, site[1]), ( (neighbor[0]+1)%N, neighbor[1]), N)
+#            U2 = dimensionless_potential( ((site[0]+1)%N, site[1]), ( (neighbor[0]+1)%N, neighbor[1]), N)
+            U2 = dimensionless_potential(neighbor, site, N) 
             U2s+=U2
+#            print ((site[0]+1)%N, site[1]), ( (neighbor[0]+1)%N, neighbor[1]),U2
             #if U2 != Us[-1]:
             #    print 'A', site, neighbor, Us[-1], U2
 
             #if U2s != fsum(Us):
             #    print 'B',U2s, fsum(Us)
-
-    print 'C',U2s, fsum(Us)
-    print 'D', v0*(fsum(Us)+U0), v0*(U2s+U0)
-    print 'E', 1000*v0*(fsum(Us)+U0), 1000*v0*(U2s+U0)
 
     return v0*(fsum(Us)+U0)
 
@@ -446,9 +419,10 @@ def pbc_r(site1, site2, N):
     :return:
         r, d-tuple, distance between two points
     """
-    diff = tuple([min(abs(float(site2[i] - site1[i]) % N), abs(float(N+site2[i] - site1[i]) )% N ) for i in xrange(d)])
-    diff_out = [dd/N for dd in diff]
-    return diff_out
+    diff = np.array([float(site2[i] - site1[i])/N for i in xrange(d)])
+    diff = np.where(diff< -0.5, diff+1, diff)
+    diff = np.where( diff>= 0.5, diff-1, diff)
+    return tuple(diff)
 
 
 def dimensionless_potential(site1, site2, N):
@@ -476,8 +450,9 @@ def dimensionless_potential(site1, site2, N):
     u_sr = erfc(dist / s_0) / dist
 
     u_lr = 0
-    for l in product(range(L_MAX), repeat=d):
-        if l == tuple(0 for i in xrange(d)):
+    zero_l = tuple(0 for i in xrange(d))
+    for l in product(range(-L_MAX, L_MAX), repeat=d):
+        if l == zero_l: 
             continue
         l2 = sum(l_i ** 2 for l_i in l)
 
