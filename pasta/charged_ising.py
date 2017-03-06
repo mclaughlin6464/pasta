@@ -505,12 +505,12 @@ if __name__ == '__main__':
     #plt.plot([energies[i:i+100].var()/len(site_idxs['occ']) for i in xrange(energies.shape[0]-100)], label = 'C')
     plt.legend(loc = 'best')
 
-    #plt.savefig(path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_energies.png'%(args.xb,args.xp)))
+    plt.savefig(path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_energies.png'%(args.xb,args.xp)))
 
-    #np.savetxt(path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_energies.npy'%(args.xb,args.xp)), energies, delimiter=',')
+    np.savetxt(path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_energies.npy'%(args.xb,args.xp)), energies, delimiter=',')
 
-    while True:
-        plt.pause(0.1)
+    #while True:
+    #    plt.pause(0.1)
 
     # for xb, E in izip(xbs, energies):
     #plt.plot(xbs, energies)

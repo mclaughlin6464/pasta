@@ -2,11 +2,11 @@
 TODO Better docstring
 Send a collection of models to the cluster.
 '''
-import path
+from os import path
 from subprocess import call
 
 outputdir = '/u/ki/swmclau2/des/statmech/sanity_test/'
-max_time = 4
+max_time = 12 
 
 def make_kils_command(jobname,N,B0, xb, xp, n_steps, max_time = max_time, outputdir = outputdir, queue='kipac-ibq'):#'bulletmpi'):
     '''
@@ -40,7 +40,7 @@ xps = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
 
 N = 20
 B0 = 0.01
-n_steps = 10000000
+n_steps = 1000000
 
 for xb in xbs:
     for xp in xps:
