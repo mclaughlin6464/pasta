@@ -397,6 +397,7 @@ def coulomb_potential(lattice):
     return v0*(fsum(Us)+U0)
 
 
+
 def delta_colpot(lattice, site1, site2):
     """
     Change in electric potential energy from swapping the two sites.
