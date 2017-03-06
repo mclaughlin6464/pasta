@@ -57,7 +57,7 @@ def run_ising(N, B_goal, xb, xp, n_steps, outputdir, plot=False):
     assert 0 <= xp <= 1
     assert n_steps > 0
 
-    np.random.seed(0)
+    np.random.seed(7)
     # initialize based on inputs
     size = tuple(N for i in xrange(d))
     lattice = (np.random.rand(*size) <= xb).astype(int)  # occupied
@@ -132,7 +132,31 @@ def run_ising(N, B_goal, xb, xp, n_steps, outputdir, plot=False):
                     sns.heatmap(lattice, cbar=True, cmap=cmap, vmin = -1, vmax = 1)
                 # plt.colorbar(im)
                 plt.title(r'$\beta= %e, E/A=%0.2f, C_v=%0.2f$' % (B, E_0 / (xb * N ** d), Cv/len(site_idxs['occ']) ) )
-                plt.pause(0.1)
+                plt.pause(0.5)
+                plt.clf()
+
+            row, col = np.indices(tuple(N for i in xrange(d)))
+            #from copy import deepcopy
+            #l2 = deepcopy(lattice)
+            lattice[[row, col]] = lattice[[(row+1)%N, (col+0)%N]]
+            # make a list of indices
+            for spin in (1, 0, -1):
+                site_idxs[spin] = set(tuple(idx) for idx in np.c_[(lattice == spin).nonzero()])
+
+            site_idxs['occ'] = site_idxs[1] | site_idxs[-1]  # sites occupied by nucleon
+            print '*'*50
+            print energy(lattice)
+
+            if plot:
+                if d == 1:
+                    # im = plt.imshow(lattice.reshape((1, -1)), interpolation='none')
+                    sns.heatmap(lattice.reshape((1, -1)), cbar=True, cmap=cmap, vmin=-1, vmax=1)
+                else:
+                    # im = plt.imshow(lattice, interpolation='none')
+                    sns.heatmap(lattice, cbar=True, cmap=cmap, vmin=-1, vmax=1)
+                # plt.colorbar(im)
+                plt.title(r'$\beta= %e, E/A=%0.2f, C_v=%0.2f$' % (B, E_0 / (xb * N ** d), Cv / len(site_idxs['occ'])))
+                plt.pause(0.5)
                 plt.clf()
 
             t0 = time()
@@ -143,7 +167,7 @@ def run_ising(N, B_goal, xb, xp, n_steps, outputdir, plot=False):
             site1, site2 = np.random.randint(0, N, size=(2, d))
             site1, site2 = tuple(site1), tuple(site2)
 
-        #energies[step+1] = energies[step]
+        energies[step+1] = energies[step]
         dE = delta_energy(lattice, site1, site2)
 
         # if E_F < E_0, keep
@@ -234,7 +258,7 @@ def energy(lattice):
     Vn = nuclear_potential(lattice)
     Vc = coulomb_potential(lattice)
     #print Vn, Vc
-    return Vn  +Vc
+    return Vn + 1000*Vc
 
 
 def delta_energy(lattice, site1, site2):
@@ -252,7 +276,9 @@ def delta_energy(lattice, site1, site2):
     dVn = delta_nucpot(lattice, site1, site2)
     dVc = delta_colpot(lattice, site1, site2)
     #print dVn, dVc
-    return dVn +dVc
+    #print 'd', dVc < 0
+    #print dVn,1000*dVc
+    return dVn +1000*dVc
 
 
 def nuclear_potential(lattice):
@@ -300,6 +326,9 @@ def delta_nucpot(lattice, site1, site2):
 
     N = lattice.shape[0]
 
+    if lattice[site1] == lattice[site2]:
+        return 0
+
     V = 0
     for siteA, siteB in [(site1, site2), (site2, site1)]:
         spin_siteA = lattice[siteA]
@@ -332,24 +361,41 @@ def coulomb_potential(lattice):
     #calculate constant
     Z = len(site_idxs[1])
     s_0 = a_s * 1.0 / N
-    U = -1*(Z/(np.sqrt(np.pi)*s_0)+0.5*np.pi*s_0**2*Z**2)
+    U0 = -1*(Z/(np.sqrt(np.pi)*s_0)+0.5*np.pi*s_0**2*Z**2)
     u_lr0 = 0
     for l in product(range(L_MAX), repeat=d):
         if l == tuple(0 for i in xrange(d)):
             continue
         l2 = sum(l_i ** 2 for l_i in l)
         u_lr0 += np.exp(-1 * np.pi ** 2 * s_0 ** 2 * l2)
-    U+=Z/2*u_lr0
+    U0+=Z/2*u_lr0
+
+    Us= []
 
     #Had to do this cuz i was getting non-deterministic behavior
     proton_list = sorted(list(site_idxs[1]), key = lambda x: x[0])
     #print len(site_idxs[1])
+    U2s = 0
     while proton_list:
         site = proton_list.pop()
+        #print site, tuple(((site[0]+1)%N, site[1]))
         for neighbor in proton_list:
-            U += dimensionless_potential(site, neighbor, N)
+            #print site, neighbor
+            Us.append(dimensionless_potential(site, neighbor, N) )
+            U2 = dimensionless_potential( ((site[0]+1)%N, site[1]), ( (neighbor[0]+1)%N, neighbor[1]), N)
+            U2s+=U2
+            #if U2 != Us[-1]:
+            #    print 'A', site, neighbor, Us[-1], U2
 
-    return v0*U
+            #if U2s != fsum(Us):
+            #    print 'B',U2s, fsum(Us)
+
+    print 'C',U2s, fsum(Us)
+    print 'D', v0*(fsum(Us)+U0), v0*(U2s+U0)
+    print 'E', 1000*v0*(fsum(Us)+U0), 1000*v0*(U2s+U0)
+
+    return v0*(fsum(Us)+U0)
+
 
 
 def delta_colpot(lattice, site1, site2):
@@ -400,9 +446,9 @@ def pbc_r(site1, site2, N):
     :return:
         r, d-tuple, distance between two points
     """
-    diff = tuple([min(abs(float(site2[i] - site1[i]) / N), abs(1-float(site2[i] - site1[i]) / N) ) for i in xrange(d)])
-
-    return diff
+    diff = tuple([min(abs(float(site2[i] - site1[i]) % N), abs(float(N+site2[i] - site1[i]) )% N ) for i in xrange(d)])
+    diff_out = [dd/N for dd in diff]
+    return diff_out
 
 
 def dimensionless_potential(site1, site2, N):
@@ -417,6 +463,9 @@ def dimensionless_potential(site1, site2, N):
     """
     diff = pbc_r(site1, site2, N)
     dist = np.sqrt(np.sum(np.array(diff) ** 2))
+    #print site1, ((site1[0] + 1) % N, site1[1]),site2, ((site2[0] + 1) % N, site2[1])
+    #print diff, dist
+    #print '_-'*50
 
     if round(dist, 1) in dim_pot_dict:
         return dim_pot_dict[round(dist, 1)]
@@ -585,13 +634,13 @@ if __name__ == '__main__':
     print cvs[cvs.shape[0]/2:].mean()
 
     plt.plot(energies/len(site_idxs['occ']), label = 'E')
-    plt.plot([energies[i:i+100].var()/len(site_idxs['occ']) for i in xrange(energies.shape[0]-100)], label = 'C')
+    #plt.plot([energies[i:i+100].var()/len(site_idxs['occ']) for i in xrange(energies.shape[0]-100)], label = 'C')
     plt.legend(loc = 'best')
 
     #plt.savefig(os.path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_energies.png'%(args.xb,args.xp)))
 
-    np.savetxt(os.path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_energies.npy'%(args.xb,args.xp)), energies, delimiter=',')
-    np.savetxt(os.path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_energies.npy'%(args.xb,args.xp)), energies, delimiter=',')
+    #np.savetxt(os.path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_energies.npy'%(args.xb,args.xp)), energies, delimiter=',')
+    #np.savetxt(os.path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_energies.npy'%(args.xb,args.xp)), energies, delimiter=',')
     plt.clf()
 
     #if not args.plot:
