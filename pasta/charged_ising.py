@@ -308,8 +308,6 @@ def nuclear_potential(lattice):
 
     site_idxs['occ'] = visited_sites
 
-    print 'A', V
-
     return V
 
 
