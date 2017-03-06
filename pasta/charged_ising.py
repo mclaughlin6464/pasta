@@ -19,7 +19,7 @@ import seaborn as sns
 sns.set()
 cmap = 'coolwarm'
 
-d = 2  # fixed in this model
+d = 3  # fixed in this model
 v = {(1, 1): 5.167, (-1, -1): 5.167, (1, -1): -5.5, (-1, 1): -5.5}  # MeV
 a = 1.842e-15  # lattice spaccing in m
 a_s = 1.0  # dimensionaless smoothing length
