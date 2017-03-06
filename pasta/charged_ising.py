@@ -5,6 +5,7 @@ I'm going to modify my model for the simple ising model to the charged ising mod
 import argparse
 import os
 from time import time
+from math import fsum
 from itertools import izip, product
 from collections import defaultdict
 import numpy as np
@@ -107,6 +108,8 @@ def run_ising(N, B_goal, xb, xp, n_steps, outputdir, plot=False):
                     if B < B_goal:
                         B = B_goal
 
+            #E_0 = fsum(energies)#[step]
+            energies[step] = energy(lattice)
             E_0 = energies[step]
             tf = time()
             Cv = heat_capacity(B, energies[step-n_steps/downsample_rate:step])
@@ -140,7 +143,7 @@ def run_ising(N, B_goal, xb, xp, n_steps, outputdir, plot=False):
             site1, site2 = np.random.randint(0, N, size=(2, d))
             site1, site2 = tuple(site1), tuple(site2)
 
-        energies[step+1] = energies[step]
+        #energies[step+1] = energies[step]
         dE = delta_energy(lattice, site1, site2)
 
         # if E_F < E_0, keep
@@ -164,6 +167,7 @@ def run_ising(N, B_goal, xb, xp, n_steps, outputdir, plot=False):
             lattice[site1], lattice[site2] = lattice[site2], lattice[site1]
 
             energies[step+1] += dE
+            #energies[step+1] = energy(lattice)
 
     if plot:
         if d == 1:
@@ -230,7 +234,7 @@ def energy(lattice):
     Vn = nuclear_potential(lattice)
     Vc = coulomb_potential(lattice)
     #print Vn, Vc
-    return Vc#  +Vc
+    return Vn  +Vc
 
 
 def delta_energy(lattice, site1, site2):
@@ -248,7 +252,7 @@ def delta_energy(lattice, site1, site2):
     dVn = delta_nucpot(lattice, site1, site2)
     dVc = delta_colpot(lattice, site1, site2)
     #print dVn, dVc
-    return dVc# +dVc
+    return dVn +dVc
 
 
 def nuclear_potential(lattice):
@@ -374,13 +378,15 @@ def delta_colpot(lattice, site1, site2):
 
     site_idxs[1].remove(pos_site)
 
+    Us = []
+    #print len(site_idxs[1])
     for neighbor in site_idxs[1]:
-        U -= dimensionless_potential(pos_site, neighbor, N)
-        U += dimensionless_potential(zero_site, neighbor, N)
+        Us.append(-1*dimensionless_potential(pos_site, neighbor, N) )
+        Us.append(dimensionless_potential(zero_site, neighbor, N) )
 
     site_idxs[1].add(pos_site)
 
-    return U*v0
+    return fsum(Us)*v0
 
 def pbc_r(site1, site2, N):
     """
