@@ -6,8 +6,8 @@ import os
 from subprocess import call
 import numpy as np
 
-outputdir = '/u/ki/swmclau2/des/statmech/full/'
-max_time = 24
+outputdir = '/u/ki/swmclau2/des/statmech/full2/'
+max_time = 6
 
 def make_kils_command(jobname,N,B_goal, xb, xp, n_steps, max_time = max_time, outputdir = outputdir, queue='kipac-ibq'):#'bulletmpi'):
     '''
@@ -40,12 +40,27 @@ xbs = [0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8,0.9, 1.0]
 xps = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
 
 N = 30
-B_goals = np.logspace(-1, 1, 10)
+#B_goal = 100 
 n_steps = 100000
-
+'''
 for xb in xbs:
     for xp in xps:
+        jobname = 'xb_%0.2f_xp_%0.2f'%(xb,xp)
+        command = make_kils_command(jobname, N,B_goal, xb, xp, n_steps)
+
+        call(command)
+
+'''
+B_goals = np.logspace(-1, 1, 10)
+for xb in xbs:
+    #if xb != 0.1:
+    #    continue
+    for xp in xps:
+        #if xp != 0.2:
+        #    continue
         for B_goal in B_goals:
+            #if np.abs(B_goal - 0.464)> 1e-3:
+            #    continue
             jobname = 'xb_%0.2f_xp_%0.2f_B_g%.2e'%(xb,xp,B_goal)
             command = make_kils_command(jobname, N,B_goal, xb, xp, n_steps,max_time, os.path.join(outputdir, jobname))
 

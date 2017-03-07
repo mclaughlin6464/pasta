@@ -71,7 +71,7 @@ def run_ising(N, B_goal, xb, xp, n_steps, outputdir, plot=False):
     E_0 = energy(lattice)
 
     if xb == 1.0 and (xp == 0.0 or xp == 1.0): #no swaps possible, will infinite loop
-        print E_0/(N**d)
+        print E_0
         energies = np.array([E_0 for i in xrange(n_steps+2)])
         return energies
 
@@ -253,7 +253,7 @@ def delta_energy(lattice, site1, site2):
     #print dVn, dVc
     #print 'd', dVc < 0
     #print dVn,1000*dVc
-    return dVn +1000*dVc
+    return dVn +dVc
 
 
 def nuclear_potential(lattice):
@@ -594,6 +594,8 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+    print vars(args)
+
     if not os.path.isdir(args.outputdir):
         os.mkdir(args.outputdir)
 
@@ -603,7 +605,7 @@ if __name__ == '__main__':
         #print xb
         #energies.append(run_ising(xb=xb, **vars(args)))
 
-    energies,cvs, euclid_correlations, taxicab_correlations = run_ising(**vars(args))
+    energies, cvs, euclid_correlations, taxicab_correlations = run_ising(**vars(args))
 
     print 'Done'
 
@@ -614,28 +616,28 @@ if __name__ == '__main__':
     #plt.plot([energies[i:i+100].var()/len(site_idxs['occ']) for i in xrange(energies.shape[0]-100)], label = 'C')
     plt.legend(loc = 'best')
 
-    #plt.savefig(os.path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_energies.png'%(args.xb,args.xp)))
+    plt.savefig(os.path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_energies.png'%(args.xb,args.xp)))
 
+    np.savetxt(os.path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_energies.npy'%(args.xb,args.xp)), energies, delimiter=',')
     #np.savetxt(os.path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_energies.npy'%(args.xb,args.xp)), energies, delimiter=',')
-    #np.savetxt(os.path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_energies.npy'%(args.xb,args.xp)), energies, delimiter=',')
-    plt.clf()
+    #plt.clf()
 
     #if not args.plot:
     #    plt.ion()
     #while True:
     #    plt.pause(0.1)
 
-    rs = args.N*np.linspace(0,1, euclid_correlations.shape[0])
-    plt.plot(rs, euclid_correlations[:,0], label = 'Neutrons')
-    plt.plot(rs, euclid_correlations[:,1], label = 'Protons')
+    #rs = args.N*np.linspace(0,1, euclid_correlations.shape[0])
+    #plt.plot(rs, euclid_correlations[:,0], label = 'Neutrons')
+    #plt.plot(rs, euclid_correlations[:,1], label = 'Protons')
     #plt.vlines([1, np.sqrt(2), 2], 1, 2)
     #plt.plot(rs, correlations[:,2], label = 'Nucleons')
-    plt.legend(loc = 'best')
+    #plt.legend(loc = 'best')
 
-    while True:
-        plt.pause(0.1)
+    #while True:
+    #    plt.pause(0.1)
 
-    plt.savefig(os.path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_correlations.png'%(args.xb,args.xp)))
+    #plt.savefig(os.path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_correlations.png'%(args.xb,args.xp)))
 
     np.savetxt(os.path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_euclid_correlations.npy'%(args.xb,args.xp)), euclid_correlations, delimiter=',')
     np.savetxt(os.path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_taxicab_correlations.npy'%(args.xb,args.xp)), taxicab_correlations, delimiter=',')
