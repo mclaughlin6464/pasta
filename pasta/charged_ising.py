@@ -11,15 +11,15 @@ from collections import defaultdict
 import numpy as np
 from numpy.linalg import norm
 from scipy.special import erfc
-import matplotlib
-matplotlib.use('Agg')
+#import matplotlib
+#matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 import seaborn as sns
 
 sns.set()
 cmap = 'coolwarm'
 
-d = 3  # fixed in this model
+d = 3# fixed in this model
 v = {(1, 1): 5.167, (-1, -1): 5.167, (1, -1): -5.5, (-1, 1): -5.5}  # MeV
 a = 1.842e-15  # lattice spaccing in m
 a_s = 1.0  # dimensionaless smoothing length
@@ -183,12 +183,12 @@ def run_ising(N, B_goal, xb, xp, n_steps, outputdir, plot=False):
         plt.clf()
 
     euclid_correlations = np.zeros((npoints, 3))
-    taxicab_correlations = np.zeros((npoints/10, 3))
+    taxicab_correlations = np.zeros((npoints, 3))
     for i, particle in enumerate((-1, 1)):
         for j, r in enumerate( np.linspace(0, 1, npoints)):
             euclid_correlations[j,i] = g_r(particle, euclid_r_avgs[euclid_r_avgs.shape[0]/2:,j,i], N)
 
-        for j, r in enumerate(np.linspace(0, 1, npoints/10)):
+        for j, r in enumerate(np.linspace(0, 1, npoints)):
             taxicab_correlations[j,i] = g_r(particle, taxicab_r_avgs[taxicab_r_avgs.shape[0]/2:,j,i], N)
 
     return energies, cvs, euclid_correlations, taxicab_correlations
@@ -548,12 +548,16 @@ def pair_correlation(particle, npoints, N, dist = 'euclidean'):
         diffmat =  x - x.transpose()
         diffs[:,dim] = np.abs(diffmat[idxs].flatten())
 
+
     pbc_diffs = np.where(diffs > N/2, N-diffs, diffs)
+
+
     if dist == 'euclidean':
         pbc_dists = norm(pbc_diffs, axis = 1)
     else:
         pbc_dists = np.sum(pbc_diffs, axis = 1)
 
+    #normalize
     return np.histogram(pbc_dists,np.linspace(0,1*N,num=npoints+1))[0]
 
 def g_r(particle, r_avgs,N):
@@ -572,6 +576,8 @@ def g_r(particle, r_avgs,N):
     Np = len(site_idxs[particle])
     if Np == 0:
         return  1
+    #print r_avgs
+    #print r_avgs.mean()
     return 1 + N**d/(Np*(Np-1.0))*(r_avgs.mean())
 
 
@@ -612,13 +618,13 @@ if __name__ == '__main__':
     print energies[energies.shape[0]/2:].mean()/(len(site_idxs['occ']))
     print cvs[cvs.shape[0]/2:].mean()
 
-    plt.plot(energies/len(site_idxs['occ']), label = 'E')
+    #plt.plot(energies/len(site_idxs['occ']), label = 'E')
     #plt.plot([energies[i:i+100].var()/len(site_idxs['occ']) for i in xrange(energies.shape[0]-100)], label = 'C')
-    plt.legend(loc = 'best')
+    #plt.legend(loc = 'best')
 
-    plt.savefig(os.path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_energies.png'%(args.xb,args.xp)))
+    #plt.savefig(os.path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_energies.png'%(args.xb,args.xp)))
 
-    np.savetxt(os.path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_energies.npy'%(args.xb,args.xp)), energies, delimiter=',')
+    #np.savetxt(os.path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_energies.npy'%(args.xb,args.xp)), energies, delimiter=',')
     #np.savetxt(os.path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_energies.npy'%(args.xb,args.xp)), energies, delimiter=',')
     #plt.clf()
 
@@ -627,20 +633,21 @@ if __name__ == '__main__':
     #while True:
     #    plt.pause(0.1)
 
-    #rs = args.N*np.linspace(0,1, euclid_correlations.shape[0])
-    #plt.plot(rs, euclid_correlations[:,0], label = 'Neutrons')
+    rs = args.N*np.linspace(0,1, taxicab_correlations.shape[0])
+    plt.plot(rs, euclid_correlations[:,0], label = 'Neutrons')
+    #plt.plot(rs, taxicab_correlations[:,0], label = 'Neutrons')
     #plt.plot(rs, euclid_correlations[:,1], label = 'Protons')
     #plt.vlines([1, np.sqrt(2), 2], 1, 2)
     #plt.plot(rs, correlations[:,2], label = 'Nucleons')
-    #plt.legend(loc = 'best')
+    plt.legend(loc = 'best')
 
-    #while True:
-    #    plt.pause(0.1)
+    while True:
+        plt.pause(0.1)
 
     #plt.savefig(os.path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_correlations.png'%(args.xb,args.xp)))
 
-    np.savetxt(os.path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_euclid_correlations.npy'%(args.xb,args.xp)), euclid_correlations, delimiter=',')
-    np.savetxt(os.path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_taxicab_correlations.npy'%(args.xb,args.xp)), taxicab_correlations, delimiter=',')
+    #np.savetxt(os.path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_euclid_correlations.npy'%(args.xb,args.xp)), euclid_correlations, delimiter=',')
+    #np.savetxt(os.path.join(args.outputdir, 'xb_%0.2f_xp_%0.2f_taxicab_correlations.npy'%(args.xb,args.xp)), taxicab_correlations, delimiter=',')
 
 
         # for xb, E in izip(xbs, energies):
