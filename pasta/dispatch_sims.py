@@ -1,5 +1,4 @@
 '''
-TODO Better docstring
 Send a collection of models to the cluster.
 '''
 import os
@@ -15,6 +14,8 @@ def make_kils_command(jobname,N,B_goal, xb, xp, n_steps, max_time = max_time, ou
     Designed to work on ki-ls's batch system
     :param jobname:
         Name of the job. Will also be used to make the parameter file and log file.
+    :params N, B_goal, xb, xp, n_steps:
+        Input params for charged_ising.py
     :param max_time:
         Time for the job to run, in hours.
     :param outputdir:
